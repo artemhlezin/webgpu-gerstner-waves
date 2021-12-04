@@ -4,7 +4,8 @@
     "strict": true,
     "module": "es6",
     "target": "es5",
-    "allowJs": true
+    "allowJs": true,
+    "types": ["@webgpu/types"]
   },
   "files": ["src/index.ts"]
 }

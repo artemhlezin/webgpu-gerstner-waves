@@ -1,1 +1,3 @@
-console.log("Hello World!");
+if ("gpu" in navigator) {
+  console.log("WebGPU is supported!");
+}
