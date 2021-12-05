@@ -1,3 +1,5 @@
+import { mat4 } from "gl-matrix";
+
 import vertexShaderSource from "./shaders/shader.vert.wgsl";
 import fragmentShaderSource from "./shaders/shader.frag.wgsl";
 
@@ -70,8 +72,42 @@ async function main(): Promise<void> {
     ],
   };
 
+  // Create transformation buffer
+  const transformModelBuffer = device.createBuffer({
+    size: 16 * Float32Array.BYTES_PER_ELEMENT, // mat4x4<f32>
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  // Create transformation bind group and bind group layout
+  const transformBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
+    ],
+  });
+  const transformBindGroup = device.createBindGroup({
+    layout: transformBindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: transformModelBuffer,
+        },
+      },
+    ],
+  });
+
+  // Create pipeline layout from bind group layouts
+  const pipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [transformBindGroupLayout],
+  });
+
   // Create render pipeline
   const renderPipelineDescriptor: GPURenderPipelineDescriptor = {
+    layout: pipelineLayout,
     vertex: {
       module: vertexShaderModule,
       entryPoint: "main",
@@ -102,12 +138,25 @@ async function main(): Promise<void> {
       ],
     };
 
+    // Create and update translate matrix
+    const transformMatrix = mat4.create();
+    const rot = (timestamp * 0.1 * Math.PI) / 180;
+    mat4.rotateZ(transformMatrix, transformMatrix, rot);
+
+    // Update buffers
+    device.queue.writeBuffer(
+      transformModelBuffer,
+      0,
+      transformMatrix as ArrayBuffer
+    );
+
     const commandEncoder = device!.createCommandEncoder();
 
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(renderPipeline);
     passEncoder.setVertexBuffer(0, vertexBuffer);
     passEncoder.setIndexBuffer(indexBuffer, "uint32");
+    passEncoder.setBindGroup(0, transformBindGroup);
     passEncoder.drawIndexed(indexData.length);
     passEncoder.endPass();
     device!.queue.submit([commandEncoder.finish()]);
