@@ -13,12 +13,13 @@ async function main(): Promise<void> {
 
   // Setup swapchain
   const canvas: HTMLCanvasElement = document.querySelector("#gpuCanvas")!;
-  const context = canvas.getContext("webgpu")!;
+  const context: GPUCanvasContext = canvas.getContext("webgpu")!;
   const presentationFormat = context.getPreferredFormat(adapter);
   context.configure({
     device: device,
     format: presentationFormat,
   });
+  const sampleCount = 4;
 
   // Create shader modules
   const vertexShaderModule = device.createShaderModule({
@@ -118,14 +119,29 @@ async function main(): Promise<void> {
       entryPoint: "main",
       targets: [{ format: presentationFormat }],
     },
+    multisample: { count: sampleCount },
   };
   const renderPipeline = device.createRenderPipeline(renderPipelineDescriptor);
+
+  // Create attachment for multisampling support
+  const texture = device.createTexture({
+    size: {
+      width: canvas.width,
+      height: canvas.height,
+    },
+    sampleCount: sampleCount,
+    format: presentationFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  const view = texture.createView();
 
   requestAnimationFrame(function draw(timestamp: number) {
     // Create render pass descriptor
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [
         {
+          view,
+          resolveTarget: context.getCurrentTexture().createView(),
           loadValue: {
             r: Math.sin(timestamp * 0.001) * 0.5 + 0.5,
             g: 0.5,
@@ -133,14 +149,14 @@ async function main(): Promise<void> {
             a: 1.0,
           },
           storeOp: "store",
-          view: context.getCurrentTexture().createView(),
         },
       ],
     };
 
     // Create and update translate matrix
     const transformMatrix = mat4.create();
-    const rot = (timestamp * 0.1 * Math.PI) / 180;
+    // const rot = (timestamp * 0.1 * Math.PI) / 180;
+    const rot = (30 * Math.PI) / 180;
     mat4.rotateZ(transformMatrix, transformMatrix, rot);
 
     // Update buffers
