@@ -1,7 +1,9 @@
 import { mat4 } from "gl-matrix";
+import { loadImage } from "./utils";
 
 import vertexShaderSource from "./shaders/shader.vert.wgsl";
 import fragmentShaderSource from "./shaders/shader.frag.wgsl";
+import logoUrl from "./images/webgpu-logo.webp";
 
 async function main(): Promise<void> {
   // Setup device
@@ -32,17 +34,17 @@ async function main(): Promise<void> {
   // Quad geometry data
   // prettier-ignore
   const vertexData = new Float32Array([
-    // position       // color
-    -0.5, -0.5, 0.0,  1.0, 0.0, 0.0,
-     0.5, -0.5, 0.0,  0.0, 1.0, 0.0,
-    -0.5,  0.5, 0.0,  0.0, 0.0, 1.0,
-     0.5,  0.5, 0.0,  1.0, 1.0, 1.0,
+    // position       // color       // UV 
+    -0.5, -0.5, 0.0,  1.0, 0.0, 0.0, 0.0, 1.0,
+     0.5, -0.5, 0.0,  0.0, 1.0, 0.0, 1.0, 1.0,
+    -0.5,  0.5, 0.0,  0.0, 0.0, 1.0, 0.0, 0.0,
+     0.5,  0.5, 0.0,  1.0, 1.0, 1.0, 1.0, 0.0,
   ]);
   const indexData = new Uint32Array([0, 1, 2, 1, 3, 2]);
 
   // Create quad geometry vertex/index buffers
   const vertexBuffer = device.createBuffer({
-    size: 6 * 4 * Float32Array.BYTES_PER_ELEMENT,
+    size: (3 + 3 + 2) * 4 * Float32Array.BYTES_PER_ELEMENT, // (position + color + uv) * vertex count * bytes per element
     usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
   });
@@ -58,7 +60,7 @@ async function main(): Promise<void> {
   indexBuffer.unmap();
 
   const vertexBufferLayout: GPUVertexBufferLayout = {
-    arrayStride: (3 + 3) * Float32Array.BYTES_PER_ELEMENT,
+    arrayStride: (3 + 3 + 2) * Float32Array.BYTES_PER_ELEMENT, // (position + color + uv) * bytes per element
     attributes: [
       {
         format: "float32x3",
@@ -69,6 +71,11 @@ async function main(): Promise<void> {
         format: "float32x3",
         offset: 3 * Float32Array.BYTES_PER_ELEMENT,
         shaderLocation: 1,
+      },
+      {
+        format: "float32x2",
+        offset: (3 + 3) * Float32Array.BYTES_PER_ELEMENT,
+        shaderLocation: 2,
       },
     ],
   };
@@ -101,9 +108,59 @@ async function main(): Promise<void> {
     ],
   });
 
+  // Load image and copy it to the GPUTexture
+  const logo = await loadImage(logoUrl);
+  const logoGPUTexture = device.createTexture({
+    size: [logo.width, logo.height],
+    format: presentationFormat,
+    usage:
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture(
+    { source: logo },
+    { texture: logoGPUTexture },
+    [logo.width, logo.height]
+  );
+
+  // Create textures bind group and bind group layout
+  const texturesBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: { type: "filtering" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: "float" },
+      },
+    ],
+  });
+  const texturesBindGroup = device.createBindGroup({
+    layout: texturesBindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: device.createSampler({
+          addressModeU: "repeat",
+          addressModeV: "repeat",
+          magFilter: "linear",
+          minFilter: "linear",
+        }),
+      },
+      {
+        binding: 1,
+        resource: logoGPUTexture.createView(),
+      },
+    ],
+  });
+
   // Create pipeline layout from bind group layouts
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [transformBindGroupLayout],
+    bindGroupLayouts: [transformBindGroupLayout, texturesBindGroupLayout],
   });
 
   // Create render pipeline
@@ -173,6 +230,7 @@ async function main(): Promise<void> {
     passEncoder.setVertexBuffer(0, vertexBuffer);
     passEncoder.setIndexBuffer(indexBuffer, "uint32");
     passEncoder.setBindGroup(0, transformBindGroup);
+    passEncoder.setBindGroup(1, texturesBindGroup);
     passEncoder.drawIndexed(indexData.length);
     passEncoder.endPass();
     device!.queue.submit([commandEncoder.finish()]);
