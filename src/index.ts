@@ -1,4 +1,4 @@
-import { mat4 } from "gl-matrix";
+import { vec3, mat4, glMatrix } from "gl-matrix";
 import { loadImage } from "./utils";
 
 import vertexShaderSource from "./shaders/shader.vert.wgsl";
@@ -80,8 +80,31 @@ async function main(): Promise<void> {
     ],
   };
 
+  // MVP matrices
+  const modelMatrix = mat4.create();
+  const viewMatrix = mat4.create();
+  const projectionMatrix = mat4.create();
+  const viewProjectionMatrix = mat4.create();
+  // Camera data
+  const cameraPosition = vec3.fromValues(0.0, 0.0, 2.0);
+  const near = 0.1;
+  const far = 100.0;
+  const fov = glMatrix.toRadian(50);
+  const aspectRatio = canvas.width / canvas.height;
+  // Transform model
+  mat4.translate(modelMatrix, modelMatrix, [0, 0, 0]);
+  // Orbit View
+  mat4.rotateY(viewMatrix, viewMatrix, glMatrix.toRadian(30));
+  mat4.rotateX(viewMatrix, viewMatrix, glMatrix.toRadian(30));
+  mat4.translate(viewMatrix, viewMatrix, cameraPosition);
+  mat4.invert(viewMatrix, viewMatrix);
+  // Projection
+  mat4.perspectiveZO(projectionMatrix, fov, aspectRatio, near, far);
+  // mat4.multiply(viewMatrix, viewMatrix, modelMatrix);
+  mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+
   // Create transformation buffer
-  const transformModelBuffer = device.createBuffer({
+  const uniformBuffer = device.createBuffer({
     size: 16 * Float32Array.BYTES_PER_ELEMENT, // mat4x4<f32>
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -102,7 +125,7 @@ async function main(): Promise<void> {
       {
         binding: 0,
         resource: {
-          buffer: transformModelBuffer,
+          buffer: uniformBuffer,
         },
       },
     ],
@@ -210,17 +233,11 @@ async function main(): Promise<void> {
       ],
     };
 
-    // Create and update translate matrix
-    const transformMatrix = mat4.create();
-    // const rot = (timestamp * 0.1 * Math.PI) / 180;
-    const rot = (30 * Math.PI) / 180;
-    mat4.rotateZ(transformMatrix, transformMatrix, rot);
-
     // Update buffers
     device.queue.writeBuffer(
-      transformModelBuffer,
+      uniformBuffer,
       0,
-      transformMatrix as ArrayBuffer
+      viewProjectionMatrix as ArrayBuffer
     );
 
     const commandEncoder = device!.createCommandEncoder();
