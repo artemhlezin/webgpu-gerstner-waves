@@ -1,9 +1,11 @@
-import { vec3, mat4, glMatrix } from "gl-matrix";
-import { loadImage } from "./utils";
+import { mat4, glMatrix, quat } from "gl-matrix";
+import { loadImage, createOrbitViewMatrix } from "./utils";
+import { Controls } from "./controls";
 
 import vertexShaderSource from "./shaders/shader.vert.wgsl";
 import fragmentShaderSource from "./shaders/shader.frag.wgsl";
 import logoUrl from "./images/webgpu-logo.webp";
+import "./styles/styles.css";
 
 async function main(): Promise<void> {
   // Setup device
@@ -80,28 +82,17 @@ async function main(): Promise<void> {
     ],
   };
 
-  // MVP matrices
-  const modelMatrix = mat4.create();
-  const viewMatrix = mat4.create();
-  const projectionMatrix = mat4.create();
-  const viewProjectionMatrix = mat4.create();
   // Camera data
-  const cameraPosition = vec3.fromValues(0.0, 0.0, 2.0);
   const near = 0.1;
   const far = 100.0;
   const fov = glMatrix.toRadian(50);
   const aspectRatio = canvas.width / canvas.height;
-  // Transform model
+
+  // Model matrix
+  const modelMatrix = mat4.create();
   mat4.translate(modelMatrix, modelMatrix, [0, 0, 0]);
-  // Orbit View
-  mat4.rotateY(viewMatrix, viewMatrix, glMatrix.toRadian(30));
-  mat4.rotateX(viewMatrix, viewMatrix, glMatrix.toRadian(30));
-  mat4.translate(viewMatrix, viewMatrix, cameraPosition);
-  mat4.invert(viewMatrix, viewMatrix);
-  // Projection
-  mat4.perspectiveZO(projectionMatrix, fov, aspectRatio, near, far);
-  // mat4.multiply(viewMatrix, viewMatrix, modelMatrix);
-  mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+  mat4.rotateX(modelMatrix, modelMatrix, glMatrix.toRadian(-90));
+  mat4.scale(modelMatrix, modelMatrix, [2, 2, 1]);
 
   // Create transformation buffer
   const uniformBuffer = device.createBuffer({
@@ -215,7 +206,33 @@ async function main(): Promise<void> {
   });
   const view = texture.createView();
 
+  const constrols = new Controls(canvas);
+  constrols.register();
+
   requestAnimationFrame(function draw(timestamp: number) {
+    // MVP
+    const viewMatrix = createOrbitViewMatrix(
+      3,
+      quat.fromEuler(quat.create(), constrols.y, constrols.x, 0)
+    );
+    const projectionMatrix = mat4.perspectiveZO(
+      mat4.create(),
+      fov,
+      aspectRatio,
+      near,
+      far
+    );
+    const modelViewMatrix = mat4.multiply(
+      mat4.create(),
+      viewMatrix,
+      modelMatrix
+    );
+    const viewProjectionMatrix = mat4.multiply(
+      mat4.create(),
+      projectionMatrix,
+      modelViewMatrix
+    );
+
     // Create render pass descriptor
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [

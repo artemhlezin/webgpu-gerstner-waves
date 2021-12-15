@@ -31,6 +31,10 @@ const config = {
         test: /\.wgsl$/i,
         type: "asset/source",
       },
+      {
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"],
+      },
     ],
   },
   resolve: {
