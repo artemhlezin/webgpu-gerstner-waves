@@ -189,6 +189,11 @@ async function main(): Promise<void> {
       entryPoint: "main",
       targets: [{ format: presentationFormat }],
     },
+    depthStencil: {
+      format: "depth32float",
+      depthWriteEnabled: true,
+      depthCompare: "less",
+    },
     multisample: { count: sampleCount },
   };
   const renderPipeline = device.createRenderPipeline(renderPipelineDescriptor);
@@ -203,7 +208,20 @@ async function main(): Promise<void> {
     format: presentationFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
-  const view = texture.createView();
+  const textureView = texture.createView();
+
+  // Create depth texture
+  const depthTexture = device.createTexture({
+    size: {
+      width: canvas.width,
+      height: canvas.height,
+      depthOrArrayLayers: 1,
+    },
+    sampleCount: sampleCount,
+    dimension: "2d",
+    format: "depth32float",
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
 
   const controls = new Controls(canvas, 30, -40);
   controls.register();
@@ -236,7 +254,7 @@ async function main(): Promise<void> {
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [
         {
-          view,
+          view: textureView,
           resolveTarget: context.getCurrentTexture().createView(),
           loadValue: {
             r: Math.sin(timestamp * 0.001) * 0.5 + 0.5,
@@ -247,6 +265,13 @@ async function main(): Promise<void> {
           storeOp: "store",
         },
       ],
+      depthStencilAttachment: {
+        view: depthTexture.createView(),
+        depthLoadValue: 1.0,
+        depthStoreOp: "discard",
+        stencilLoadValue: 0,
+        stencilStoreOp: "store",
+      },
     };
 
     // Update buffers
