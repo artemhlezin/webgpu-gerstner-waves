@@ -1,6 +1,7 @@
 import { mat4, glMatrix, quat } from "gl-matrix";
 import { loadImage, createOrbitViewMatrix } from "./utils";
 import { Controls } from "./controls";
+import { Plane } from "./geometries";
 
 import vertexShaderSource from "./shaders/shader.vert.wgsl";
 import fragmentShaderSource from "./shaders/shader.frag.wgsl";
@@ -33,20 +34,14 @@ async function main(): Promise<void> {
     code: fragmentShaderSource,
   });
 
-  // Quad geometry data
-  // prettier-ignore
-  const vertexData = new Float32Array([
-    // position       // color       // UV 
-    -0.5, -0.5, 0.0,  1.0, 0.0, 0.0, 0.0, 1.0,
-     0.5, -0.5, 0.0,  0.0, 1.0, 0.0, 1.0, 1.0,
-    -0.5,  0.5, 0.0,  0.0, 0.0, 1.0, 0.0, 0.0,
-     0.5,  0.5, 0.0,  1.0, 1.0, 1.0, 1.0, 0.0,
-  ]);
-  const indexData = new Uint32Array([0, 1, 2, 1, 3, 2]);
+  // Generate geometry data
+  const plane = new Plane(5, 5, 50, 50);
+  const indexData = new Uint32Array(plane.indices);
+  const vertexData = new Float32Array(plane.vertecies);
 
-  // Create quad geometry vertex/index buffers
+  // Create vertex/index buffers
   const vertexBuffer = device.createBuffer({
-    size: (3 + 3 + 2) * 4 * Float32Array.BYTES_PER_ELEMENT, // (position + color + uv) * vertex count * bytes per element
+    size: vertexData.byteLength,
     usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
   });
@@ -62,21 +57,21 @@ async function main(): Promise<void> {
   indexBuffer.unmap();
 
   const vertexBufferLayout: GPUVertexBufferLayout = {
-    arrayStride: (3 + 3 + 2) * Float32Array.BYTES_PER_ELEMENT, // (position + color + uv) * bytes per element
+    arrayStride: plane.stride * Float32Array.BYTES_PER_ELEMENT,
     attributes: [
       {
         format: "float32x3",
-        offset: 0,
+        offset: plane.positionOffset * Float32Array.BYTES_PER_ELEMENT,
         shaderLocation: 0,
       },
       {
         format: "float32x3",
-        offset: 3 * Float32Array.BYTES_PER_ELEMENT,
+        offset: plane.normalOffset * Float32Array.BYTES_PER_ELEMENT,
         shaderLocation: 1,
       },
       {
         format: "float32x2",
-        offset: (3 + 3) * Float32Array.BYTES_PER_ELEMENT,
+        offset: plane.uvOffset * Float32Array.BYTES_PER_ELEMENT,
         shaderLocation: 2,
       },
     ],
@@ -90,9 +85,13 @@ async function main(): Promise<void> {
 
   // Model matrix
   const modelMatrix = mat4.create();
-  mat4.translate(modelMatrix, modelMatrix, [0, 0, 0]);
   mat4.rotateX(modelMatrix, modelMatrix, glMatrix.toRadian(-90));
-  mat4.scale(modelMatrix, modelMatrix, [2, 2, 1]);
+  mat4.translate(modelMatrix, modelMatrix, [
+    -plane.width / 2, // center plane
+    -plane.height / 2,
+    0,
+  ]);
+  // mat4.scale(modelMatrix, modelMatrix, [1, 1, 1]);
 
   // Create transformation buffer
   const uniformBuffer = device.createBuffer({
@@ -212,7 +211,7 @@ async function main(): Promise<void> {
   requestAnimationFrame(function draw(timestamp: number) {
     // MVP
     const viewMatrix = createOrbitViewMatrix(
-      3,
+      10,
       quat.fromEuler(quat.create(), constrols.y, constrols.x, 0)
     );
     const projectionMatrix = mat4.perspectiveZO(
@@ -227,7 +226,7 @@ async function main(): Promise<void> {
       viewMatrix,
       modelMatrix
     );
-    const viewProjectionMatrix = mat4.multiply(
+    const modelViewProjectionMatrix = mat4.multiply(
       mat4.create(),
       projectionMatrix,
       modelViewMatrix
@@ -254,7 +253,7 @@ async function main(): Promise<void> {
     device.queue.writeBuffer(
       uniformBuffer,
       0,
-      viewProjectionMatrix as ArrayBuffer
+      modelViewProjectionMatrix as ArrayBuffer
     );
 
     const commandEncoder = device!.createCommandEncoder();

@@ -1,6 +1,6 @@
 [[block]]
 struct Uniforms {
-    vpMatrix: mat4x4<f32>;
+    mvpMatrix: mat4x4<f32>;
 };
 
 struct VertexOutput {
@@ -19,8 +19,8 @@ fn main(
     [[location(2)]] uv: vec2<f32>,
 ) -> VertexOutput {
     var output: VertexOutput;
-    output.position = uniforms.vpMatrix * vec4<f32>(position.xyz, 1.0);
-    // output.position = vec4<f32>(position, 1.0);
+    output.position = uniforms.mvpMatrix * (vec4<f32>(position.xyz, 1.0) + vec4<f32>(0.0, 0.0, sin(position.x),0.0));
+    // output.position = uniforms.mvpMatrix * vec4<f32>(position.xyz, 1.0);
     output.color = vec4<f32>(color, 1.0);
     output.uv = uv;
     return output;
