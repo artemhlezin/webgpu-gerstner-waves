@@ -40,13 +40,14 @@ export class Plane {
 
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.columns; col++) {
-        const left_bottom = columnsOffset * row + col;
-        const right_bottom = columnsOffset * row + (col + 1);
-        const left_up = columnsOffset * (row + 1) + col;
-        const right_up = columnsOffset * (row + 1) + (col + 1);
+        const leftBottom = columnsOffset * row + col;
+        const rightBottom = columnsOffset * row + (col + 1);
+        const leftUp = columnsOffset * (row + 1) + col;
+        const rightUp = columnsOffset * (row + 1) + (col + 1);
 
-        this.indices.push(left_bottom, left_up, right_bottom);
-        this.indices.push(left_up, right_up, right_bottom);
+        // CCW frontface
+        this.indices.push(leftUp, leftBottom, rightBottom);
+        this.indices.push(rightUp, leftUp, rightBottom);
       }
     }
   }
