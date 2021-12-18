@@ -1,10 +1,12 @@
 export class Controls {
-  x: number = 0;
-  y: number = 0;
   private isMouseDown: boolean = false;
 
-  constructor(public target: HTMLCanvasElement) {
-    this.target = target;
+  constructor(
+    readonly target: HTMLCanvasElement,
+    public x: number = 0,
+    public y: number = 0
+  ) {
+    this.limitXY();
   }
 
   register() {
@@ -23,18 +25,22 @@ export class Controls {
     this.isMouseDown = true;
   }
 
-  onPointerMove(e: PointerEvent) {
+  private onPointerMove(e: PointerEvent) {
     if (this.isMouseDown === true) {
       this.x -= e.movementX;
       this.y -= e.movementY;
     }
-    this.y = Math.max(-90, Math.min(-10, this.y));
-    this.x = this.x % 360;
+    this.limitXY();
   }
 
-  onPointerUp() {
+  private onPointerUp() {
     if (this.isMouseDown === true) {
       this.isMouseDown = false;
     }
+  }
+  
+  private limitXY() {
+    this.y = Math.max(-90, Math.min(-10, this.y));
+    this.x = this.x % 360;
   }
 }

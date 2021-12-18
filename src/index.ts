@@ -205,14 +205,14 @@ async function main(): Promise<void> {
   });
   const view = texture.createView();
 
-  const constrols = new Controls(canvas);
-  constrols.register();
+  const controls = new Controls(canvas, 30, -40);
+  controls.register();
 
   requestAnimationFrame(function draw(timestamp: number) {
     // MVP
     const viewMatrix = createOrbitViewMatrix(
       10,
-      quat.fromEuler(quat.create(), constrols.y, constrols.x, 0)
+      quat.fromEuler(quat.create(), controls.y, controls.x, 0)
     );
     const projectionMatrix = mat4.perspectiveZO(
       mat4.create(),
