@@ -93,14 +93,14 @@ async function main(): Promise<void> {
   ]);
   // mat4.scale(modelMatrix, modelMatrix, [1, 1, 1]);
 
-  // Create transformation buffer
+  // Create uniform buffer
   const uniformBuffer = device.createBuffer({
-    size: 16 * Float32Array.BYTES_PER_ELEMENT, // mat4x4<f32>
+    size: (4 + 16 + 16) * Float32Array.BYTES_PER_ELEMENT,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Create transformation bind group and bind group layout
-  const transformBindGroupLayout = device.createBindGroupLayout({
+  // Create uniform bind group and bind group layout
+  const uniformBindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
@@ -109,8 +109,8 @@ async function main(): Promise<void> {
       },
     ],
   });
-  const transformBindGroup = device.createBindGroup({
-    layout: transformBindGroupLayout,
+  const uniformBindGroup = device.createBindGroup({
+    layout: uniformBindGroupLayout,
     entries: [
       {
         binding: 0,
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
 
   // Create pipeline layout from bind group layouts
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [transformBindGroupLayout, texturesBindGroupLayout],
+    bindGroupLayouts: [uniformBindGroupLayout, texturesBindGroupLayout],
   });
 
   // Create render pipeline
@@ -226,6 +226,9 @@ async function main(): Promise<void> {
   const controls = new Controls(canvas, 30, -40);
   controls.register();
 
+  const startTime = Date.now();
+  let elapsedTime = 0;
+
   requestAnimationFrame(function draw(timestamp: number) {
     // MVP
     const viewMatrix = createOrbitViewMatrix(
@@ -239,15 +242,10 @@ async function main(): Promise<void> {
       near,
       far
     );
-    const modelViewMatrix = mat4.multiply(
-      mat4.create(),
-      viewMatrix,
-      modelMatrix
-    );
-    const modelViewProjectionMatrix = mat4.multiply(
+    const viewProjectionMatrix = mat4.multiply(
       mat4.create(),
       projectionMatrix,
-      modelViewMatrix
+      viewMatrix
     );
 
     // Create render pass descriptor
@@ -278,7 +276,18 @@ async function main(): Promise<void> {
     device.queue.writeBuffer(
       uniformBuffer,
       0,
-      modelViewProjectionMatrix as ArrayBuffer
+      new Float32Array([elapsedTime]).buffer
+    );
+    device.queue.writeBuffer(
+      uniformBuffer,
+      4 * Float32Array.BYTES_PER_ELEMENT, // 16bytes offset is used, despite elapsedTime is 4bytes.
+      modelMatrix as Float32Array
+    );
+
+    device.queue.writeBuffer(
+      uniformBuffer,
+      (16 + 4) * Float32Array.BYTES_PER_ELEMENT,
+      viewProjectionMatrix as Float32Array
     );
 
     const commandEncoder = device!.createCommandEncoder();
@@ -287,11 +296,13 @@ async function main(): Promise<void> {
     passEncoder.setPipeline(renderPipeline);
     passEncoder.setVertexBuffer(0, vertexBuffer);
     passEncoder.setIndexBuffer(indexBuffer, "uint32");
-    passEncoder.setBindGroup(0, transformBindGroup);
+    passEncoder.setBindGroup(0, uniformBindGroup);
     passEncoder.setBindGroup(1, texturesBindGroup);
     passEncoder.drawIndexed(indexData.length);
     passEncoder.endPass();
     device!.queue.submit([commandEncoder.finish()]);
+
+    elapsedTime = (Date.now() - startTime) / 1000;
 
     requestAnimationFrame(draw);
   });
