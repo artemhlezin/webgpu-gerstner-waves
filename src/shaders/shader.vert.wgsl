@@ -1,4 +1,3 @@
-[[block]]
 struct Uniforms {
     elapsedTime: f32;
     modelMatrix: mat4x4<f32>;
