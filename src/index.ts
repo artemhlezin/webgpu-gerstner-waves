@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   });
 
   // Generate geometry data
-  const plane = new Plane(5, 5, 50, 50);
+  const plane = new Plane(7, 7, 100, 100);
   const indexData = new Uint32Array(plane.indices);
   const vertexData = new Float32Array(plane.vertecies);
 
@@ -232,7 +232,7 @@ async function main(): Promise<void> {
   requestAnimationFrame(function draw(timestamp: number) {
     // MVP
     const viewMatrix = createOrbitViewMatrix(
-      10,
+      15,
       quat.fromEuler(quat.create(), controls.y, controls.x, 0)
     );
     const projectionMatrix = mat4.perspectiveZO(
