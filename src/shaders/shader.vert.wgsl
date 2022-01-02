@@ -43,7 +43,7 @@ fn main(
     
     let x0 = worldPosition.xz;  // horizontal plane
     let x = x0 - q * direction * A * sin(dot(k, x0) - w * t + phi);
-    let y = A * cos(dot(k, x0) - w * t);
+    let y = A * cos(dot(k, x0) - w * t + phi);
 
     worldPosition.x = x.x;
     worldPosition.z = x.y;
