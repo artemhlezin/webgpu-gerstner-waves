@@ -272,9 +272,9 @@ async function main(): Promise<void> {
           view: textureView,
           resolveTarget: context.getCurrentTexture().createView(),
           loadValue: {
-            r: Math.sin(timestamp * 0.001) * 0.5 + 0.5,
-            g: 0.5,
-            b: 1.0,
+            r: 0.3,
+            g: 0.3,
+            b: 0.3,
             a: 1.0,
           },
           storeOp: "store",

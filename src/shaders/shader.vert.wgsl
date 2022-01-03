@@ -19,6 +19,7 @@ struct VertexOutput {
     [[builtin(position)]] position: vec4<f32>;
     [[location(0)]] normal: vec4<f32>;
     [[location(1)]] uv: vec2<f32>;
+    [[location(2)]] worldPosition: vec4<f32>;
 };
 
 [[group(0), binding(0)]] var<uniform> uniforms: Uniforms;
@@ -70,6 +71,7 @@ fn main(
     worldPosition.z = worldPosition.z - waves_sum.z;
     worldPosition.y = waves_sum.y;
 
+    output.worldPosition = worldPosition;
     output.position = uniforms.viewProjectionMatrix * worldPosition;
     output.normal = vec4<f32>(waves_sum_normal, 0.0);
     output.uv = uv;
