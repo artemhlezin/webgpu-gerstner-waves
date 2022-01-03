@@ -1,4 +1,4 @@
-import { mat4, glMatrix, quat } from "gl-matrix";
+import { mat4, glMatrix, quat, vec2 } from "gl-matrix";
 import { loadImage, createOrbitViewMatrix } from "./utils";
 import { Controls } from "./controls";
 import { Plane } from "./geometries";
@@ -99,11 +99,22 @@ async function main(): Promise<void> {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
+  // Create Gerstner Waves parameters buffer
+  const wavesParametersBuffer = device.createBuffer({
+    size: 32 * 3,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
   // Create uniform bind group and bind group layout
   const uniformBindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
         visibility: GPUShaderStage.VERTEX,
         buffer: { type: "uniform" },
       },
@@ -116,6 +127,12 @@ async function main(): Promise<void> {
         binding: 0,
         resource: {
           buffer: uniformBuffer,
+        },
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: wavesParametersBuffer,
         },
       },
     ],
@@ -280,15 +297,51 @@ async function main(): Promise<void> {
     );
     device.queue.writeBuffer(
       uniformBuffer,
-      4 * Float32Array.BYTES_PER_ELEMENT, // 16bytes offset is used, despite elapsedTime is 4bytes.
+      16, // 16 bytes offset is used, despite elapsedTime is 4 bytes.
       modelMatrix as Float32Array
     );
 
     device.queue.writeBuffer(
       uniformBuffer,
-      (16 + 4) * Float32Array.BYTES_PER_ELEMENT,
+      16 + 16 * Float32Array.BYTES_PER_ELEMENT, // 16 bytes (elapsedTime) + 64 bytes (modelMatrix mat4x4<f32>)
       viewProjectionMatrix as Float32Array
     );
+
+    const waves = [
+      {
+        waveLength: 2, // f32 - 4 bytes
+        amplitude: 0.2, // f32 - 4 bytes
+        steepness: 1.0, // f32 - 4 bytes, but 8 bytes will be reserved to match 32 bytes stride
+        direction: vec2.normalize(vec2.create(), [1.0, 0.3]), // vec2<f32> - 8 bytes but 16 bytes will be reserved
+      },
+      {
+        waveLength: 4,
+        amplitude: 0.2,
+        steepness: 0.8,
+        direction: vec2.normalize(vec2.create(), [-0.7, 0.0]),
+      },
+      {
+        waveLength: 5,
+        amplitude: 0.4,
+        steepness: 1.0,
+        direction: vec2.normalize(vec2.create(), [0.3, 0.2]),
+      },
+    ];
+
+    // Uniform storage requires that array elements be aligned to 16 bytes.
+    // 4 bytes waveLength + 4 bytes amplitude + 4+4 bytes steepness + 8+8 bytes direction = 32 Bytes
+    const wavesStride = 32;
+    const wavesParametersArray = new Float32Array(
+      (waves.length * wavesStride) / Float32Array.BYTES_PER_ELEMENT // 24 elements
+    );
+
+    for (let i = 0; i < waves.length; i++) {
+      wavesParametersArray[0 + i * 8] = waves[i].waveLength; // One element f32 is 4 bytes. 8 elements per stride
+      wavesParametersArray[1 + i * 8] = waves[i].amplitude;
+      wavesParametersArray[2 + i * 8] = waves[i].steepness;
+      wavesParametersArray.set(waves[i].direction, 4 + i * 8); // Skip one element, since vec2<f32> aligment is 8 bytes
+    }
+    device.queue.writeBuffer(wavesParametersBuffer, 0, wavesParametersArray);
 
     const commandEncoder = device!.createCommandEncoder();
 

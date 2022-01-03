@@ -3,6 +3,8 @@
 
 [[stage(fragment)]]
 fn main([[location(0)]] normal: vec4<f32>, [[location(1)]] uv: vec2<f32>) -> [[location(0)]] vec4<f32> {
-    // return vec4<f32>(uv, 0.0, 1.0);
-    return textureSample(myTexture, mySampler, uv);
+    let light = normalize(vec3<f32>(0.8, 0.5, 0.5));
+    let color = max(dot(normal.xyz, light), 0.0);
+    let texture = (textureSample(myTexture, mySampler, uv) * 0.5 + 0.5);
+    return vec4<f32>(color * 0.2, color * 0.8, color * 0.5, 1.0) * texture;
 }
