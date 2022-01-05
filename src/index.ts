@@ -1,5 +1,9 @@
-import { mat4, glMatrix, quat, vec2 } from "gl-matrix";
-import { loadImage, createOrbitViewMatrix } from "./utils";
+import { mat4, glMatrix, quat, vec2, vec3 } from "gl-matrix";
+import {
+  loadImage,
+  createOrbitViewMatrix,
+  positionFromViewMatrix,
+} from "./utils";
 import { Controls } from "./controls";
 import { Plane } from "./geometries";
 
@@ -95,7 +99,7 @@ async function main(): Promise<void> {
 
   // Create uniform buffer
   const uniformBuffer = device.createBuffer({
-    size: (4 + 16 + 16) * Float32Array.BYTES_PER_ELEMENT,
+    size: (4 + 16 + 16 + 3) * Float32Array.BYTES_PER_ELEMENT,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -252,6 +256,11 @@ async function main(): Promise<void> {
       15,
       quat.fromEuler(quat.create(), controls.y, controls.x, 0)
     );
+
+    // Not very optimal since matrix inversion was used twice.
+    // First time for creating orbit view matrix and second to retrieve position.
+    const viewPosition = positionFromViewMatrix(viewMatrix);
+
     const projectionMatrix = mat4.perspectiveZO(
       mat4.create(),
       fov,
@@ -305,6 +314,12 @@ async function main(): Promise<void> {
       uniformBuffer,
       16 + 16 * Float32Array.BYTES_PER_ELEMENT, // 16 bytes (elapsedTime) + 64 bytes (modelMatrix mat4x4<f32>)
       viewProjectionMatrix as Float32Array
+    );
+
+    device.queue.writeBuffer(
+      uniformBuffer,
+      16 + 16 * 2 * Float32Array.BYTES_PER_ELEMENT,
+      viewPosition as Float32Array
     );
 
     const waves = [

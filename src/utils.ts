@@ -17,3 +17,10 @@ export function createOrbitViewMatrix(radius: number, rotation: quat): mat4 {
 
   return viewMatrix;
 }
+
+export function positionFromViewMatrix(viewMatrix: mat4): vec3 {
+  const invView = mat4.invert(mat4.create(), viewMatrix);
+  const viewPosition = vec3.fromValues(invView[12], invView[13], invView[14]);
+
+  return viewPosition;
+}
