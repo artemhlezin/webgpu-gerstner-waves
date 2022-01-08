@@ -7,8 +7,7 @@ import {
 import { Controls } from "./controls";
 import { Plane } from "./geometries";
 
-import vertexShaderSource from "./shaders/shader.vert.wgsl";
-import fragmentShaderSource from "./shaders/shader.frag.wgsl";
+import shaderSource from "./shaders/gerstner-waves.wgsl";
 import logoUrl from "./images/webgpu-logo.webp";
 import "./styles/styles.css";
 
@@ -30,12 +29,9 @@ async function main(): Promise<void> {
   });
   const sampleCount = 4;
 
-  // Create shader modules
-  const vertexShaderModule = device.createShaderModule({
-    code: vertexShaderSource,
-  });
-  const fragmentShaderModule = device.createShaderModule({
-    code: fragmentShaderSource,
+  // Create shader module
+  const shaderModule = device.createShaderModule({
+    code: shaderSource,
   });
 
   // Generate geometry data
@@ -201,13 +197,13 @@ async function main(): Promise<void> {
   const renderPipelineDescriptor: GPURenderPipelineDescriptor = {
     layout: pipelineLayout,
     vertex: {
-      module: vertexShaderModule,
-      entryPoint: "main",
+      module: shaderModule,
+      entryPoint: "vertex_main",
       buffers: [vertexBufferLayout],
     },
     fragment: {
-      module: fragmentShaderModule,
-      entryPoint: "main",
+      module: shaderModule,
+      entryPoint: "fragment_main",
       targets: [{ format: presentationFormat }],
     },
     depthStencil: {

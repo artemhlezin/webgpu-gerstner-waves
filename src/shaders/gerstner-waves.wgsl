@@ -25,6 +25,9 @@ struct VertexOutput {
 [[group(0), binding(0)]] var<uniform> uniforms: Uniforms;
 [[group(0), binding(1)]] var<uniform> waves_uniforms: GerstnerWavesUniforms;
 
+[[group(1), binding(0)]] var mySampler: sampler;
+[[group(1), binding(1)]] var myTexture: texture_2d<f32>;
+
 
 let pi = 3.14159;   
 let gravity = 9.8; // m/sec^2
@@ -32,7 +35,7 @@ let wave_numbers = 3;
 
 
 [[stage(vertex)]]
-fn main(
+fn vertex_main(
     [[location(0)]] position: vec3<f32>,
     [[location(1)]] normal: vec3<f32>,
     [[location(2)]] uv: vec2<f32>,
@@ -76,4 +79,15 @@ fn main(
     output.normal = vec4<f32>(waves_sum_normal, 0.0);
     output.uv = uv;
     return output;
+}
+
+[[stage(fragment)]]
+fn fragment_main(
+    data: VertexOutput,
+) -> [[location(0)]] vec4<f32> {
+    let light = normalize(vec3<f32>(0.8, 0.5, 0.5));
+    let color = max(dot(data.normal.xyz, light), 0.0);
+    let texture = (textureSample(myTexture, mySampler, data.uv) * 0.5 + 0.5);
+    
+    return vec4<f32>((data.worldPosition.yyy + 0.5 + color) * vec3<f32>(0.2, 0.8, 0.5), 1.0) * texture;
 }
