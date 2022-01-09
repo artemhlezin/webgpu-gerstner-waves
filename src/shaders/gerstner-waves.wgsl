@@ -29,6 +29,8 @@ struct VertexOutput {
 
 [[group(1), binding(0)]] var mySampler: sampler;
 [[group(1), binding(1)]] var myTexture: texture_2d<f32>;
+[[group(1), binding(2)]] var seaSampler: sampler;
+[[group(1), binding(3)]] var seaColor: texture_2d<f32>;
 
 
 let pi = 3.14159;   
@@ -97,13 +99,13 @@ fn fragment_main(
     let specular = clamp(pow(dot(data.normal.xyz, halfway), shininess), 0.0, 1.0);  // Blinn-Phong specular component
 
     let sky = vec3<f32>(0.69, 0.84, 1.0);
-    let underwater = vec3<f32>(0.2,0.8,0.8);
 
-    // Remap to [0, 1]
-    var remaped_y = (data.worldPosition.y + waves_uniforms.amplitudeSum) / (2.0 * waves_uniforms.amplitudeSum);
-
+    // Normalize height to [0, 1]
+    let normalized_height = (data.worldPosition.y + waves_uniforms.amplitudeSum) / (2.0 * waves_uniforms.amplitudeSum);
+    let underwater = textureSample(seaColor, seaSampler, vec2<f32>(normalized_height, 0.0)).rgb;
+    
     let fresnel = clamp(pow(1.0 + dot(incidence, data.normal.xyz), 3.0), 0.0, 1.0);  // Cheap fresnel approximation
-    let color = mix(underwater*remaped_y, sky, fresnel) + specular;
+    let color = mix(underwater, sky, fresnel) + specular*vec3<f32>(1.0, 0.8, 0.7);
 
     return vec4<f32>(color, 1.0);
 }

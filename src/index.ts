@@ -9,6 +9,7 @@ import { Plane } from "./geometries";
 
 import shaderSource from "./shaders/gerstner-waves.wgsl";
 import logoUrl from "./images/webgpu-logo.webp";
+import seaColorUrl from "./images/sea-color.webp";
 import "./styles/styles.css";
 
 async function main(): Promise<void> {
@@ -35,7 +36,7 @@ async function main(): Promise<void> {
   });
 
   // Generate geometry data
-  const plane = new Plane(10, 10, 100, 100);
+  const plane = new Plane(12, 12, 100, 100);
   const indexData = new Uint32Array(plane.indices);
   const vertexData = new Float32Array(plane.vertecies);
 
@@ -154,6 +155,22 @@ async function main(): Promise<void> {
     [logo.width, logo.height]
   );
 
+  // Load sea color image and copy it to the GPUTexture
+  const seaColor = await loadImage(seaColorUrl);
+  const seaColorGPUTexture = device.createTexture({
+    size: [seaColor.width, seaColor.height],
+    format: presentationFormat,
+    usage:
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture(
+    { source: seaColor },
+    { texture: seaColorGPUTexture },
+    [seaColor.width, seaColor.height]
+  );
+
   // Create textures bind group and bind group layout
   const texturesBindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -164,6 +181,16 @@ async function main(): Promise<void> {
       },
       {
         binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: "float" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: { type: "non-filtering" },
+      },
+      {
+        binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: "float" },
       },
@@ -184,6 +211,17 @@ async function main(): Promise<void> {
       {
         binding: 1,
         resource: logoGPUTexture.createView(),
+      },
+      {
+        binding: 2,
+        resource: device.createSampler({
+          addressModeU: "clamp-to-edge",
+          addressModeV: "clamp-to-edge",
+        }),
+      },
+      {
+        binding: 3,
+        resource: seaColorGPUTexture.createView(),
       },
     ],
   });
@@ -240,7 +278,7 @@ async function main(): Promise<void> {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const controls = new Controls(canvas, 30, -40);
+  const controls = new Controls(canvas, 50, -25);
   controls.register();
 
   const startTime = Date.now();
