@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   });
 
   // Generate geometry data
-  const plane = new Plane(7, 7, 100, 100);
+  const plane = new Plane(10, 10, 100, 100);
   const indexData = new Uint32Array(plane.indices);
   const vertexData = new Float32Array(plane.vertecies);
 
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
 
   // Create Gerstner Waves parameters buffer
   const wavesParametersBuffer = device.createBuffer({
-    size: 32 * 3,
+    size: 32 * 3 + 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -110,12 +110,12 @@ async function main(): Promise<void> {
     entries: [
       {
         binding: 0,
-        visibility: GPUShaderStage.VERTEX,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
         buffer: { type: "uniform" },
       },
       {
         binding: 1,
-        visibility: GPUShaderStage.VERTEX,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
         buffer: { type: "uniform" },
       },
     ],
@@ -321,19 +321,19 @@ async function main(): Promise<void> {
     const waves = [
       {
         waveLength: 2, // f32 - 4 bytes
-        amplitude: 0.2, // f32 - 4 bytes
+        amplitude: 0.1, // f32 - 4 bytes
         steepness: 1.0, // f32 - 4 bytes, but 8 bytes will be reserved to match 32 bytes stride
         direction: vec2.normalize(vec2.create(), [1.0, 0.3]), // vec2<f32> - 8 bytes but 16 bytes will be reserved
       },
       {
         waveLength: 4,
-        amplitude: 0.2,
+        amplitude: 0.1,
         steepness: 0.8,
         direction: vec2.normalize(vec2.create(), [-0.7, 0.0]),
       },
       {
         waveLength: 5,
-        amplitude: 0.4,
+        amplitude: 0.2,
         steepness: 1.0,
         direction: vec2.normalize(vec2.create(), [0.3, 0.2]),
       },
@@ -353,6 +353,12 @@ async function main(): Promise<void> {
       wavesParametersArray.set(waves[i].direction, 4 + i * 8); // Skip one element, since vec2<f32> aligment is 8 bytes
     }
     device.queue.writeBuffer(wavesParametersBuffer, 0, wavesParametersArray);
+    const amplitudeSum = waves.reduce((acc, wave) => acc + wave.amplitude, 0);
+    device.queue.writeBuffer(
+      wavesParametersBuffer,
+      wavesParametersArray.byteLength,
+      new Float32Array([amplitudeSum]).buffer
+    );
 
     const commandEncoder = device!.createCommandEncoder();
 

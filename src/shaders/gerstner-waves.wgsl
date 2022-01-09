@@ -2,17 +2,19 @@ struct Uniforms {
     elapsedTime: f32;
     [[align(16)]] modelMatrix: mat4x4<f32>;  // Explicitly set align
     viewProjectionMatrix: mat4x4<f32>;
+    cameraPosition: vec3<f32>;
 };
 
 struct GerstnerWaveParameters {
-    length: f32;  // Length of the wave
-    amplitude: f32;
-    steepness: f32;  // Steepness of the peak of the wave. Allowed range [0..1]
+    length: f32;  // 0 < L
+    amplitude: f32; // 0 < A
+    steepness: f32;  // Steepness of the peak of the wave. 0 <= S <= 1
     [[size(16), align(8)]] direction: vec2<f32>;  // Normalized direction of the wave
 };
 
 struct GerstnerWavesUniforms {
     waves: [[stride(32)]] array<GerstnerWaveParameters, 3>;
+    amplitudeSum: f32;  // Sum of waves amplitudes
 };
 
 struct VertexOutput {
@@ -85,9 +87,23 @@ fn vertex_main(
 fn fragment_main(
     data: VertexOutput,
 ) -> [[location(0)]] vec4<f32> {
-    let light = normalize(vec3<f32>(0.8, 0.5, 0.5));
-    let color = max(dot(data.normal.xyz, light), 0.0);
-    let texture = (textureSample(myTexture, mySampler, data.uv) * 0.5 + 0.5);
+    let light_pos = vec3<f32>(-10.0, 1.0, -10.0);
+    let light = normalize(light_pos - data.worldPosition.xyz);  // Vector from surface to light
+    let incidence = normalize(data.worldPosition.xyz - uniforms.cameraPosition);  // Vector from camera to the surface
+    let reflection = reflect(data.normal.xyz, incidence);  // I - 2.0 * dot(N, I) * N
     
-    return vec4<f32>((data.worldPosition.yyy + 0.5 + color) * vec3<f32>(0.2, 0.8, 0.5), 1.0) * texture;
+    let halfway = normalize(-incidence + light);  // Vector between View and Light
+    let shininess = 30.0;
+    let specular = clamp(pow(dot(data.normal.xyz, halfway), shininess), 0.0, 1.0);  // Blinn-Phong specular component
+
+    let sky = vec3<f32>(0.69, 0.84, 1.0);
+    let underwater = vec3<f32>(0.2,0.8,0.8);
+
+    // Remap to [0, 1]
+    var remaped_y = (data.worldPosition.y + waves_uniforms.amplitudeSum) / (2.0 * waves_uniforms.amplitudeSum);
+
+    let fresnel = clamp(pow(1.0 + dot(incidence, data.normal.xyz), 3.0), 0.0, 1.0);  // Cheap fresnel approximation
+    let color = mix(underwater*remaped_y, sky, fresnel) + specular;
+
+    return vec4<f32>(color, 1.0);
 }
