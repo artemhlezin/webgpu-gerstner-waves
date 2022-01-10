@@ -25,7 +25,7 @@ struct VertexOutput {
 };
 
 [[group(0), binding(0)]] var<uniform> uniforms: Uniforms;
-[[group(0), binding(1)]] var<uniform> waves_uniforms: GerstnerWavesUniforms;
+[[group(0), binding(1)]] var<uniform> wavesUniforms: GerstnerWavesUniforms;
 
 [[group(1), binding(0)]] var seaSampler: sampler;
 [[group(1), binding(1)]] var seaColor: texture_2d<f32>;
@@ -33,7 +33,7 @@ struct VertexOutput {
 
 let pi = 3.14159;   
 let gravity = 9.8; // m/sec^2
-let wave_numbers = 5;  
+let waveNumbers = 5;  
 
 [[stage(vertex)]]
 fn vertex_main(
@@ -44,40 +44,41 @@ fn vertex_main(
     var output: VertexOutput;
     var worldPosition: vec4<f32> = uniforms.modelMatrix * vec4<f32>(position, 1.0);
 
-    var waves_sum: vec3<f32> = vec3<f32>(0.0);
-    var waves_sum_normal: vec3<f32>;
-    for(var i: i32 = 0; i < wave_numbers; i = i + 1) {
-        let wave = waves_uniforms.waves[i];
-        let phase = 0.0;
-        let wavevector_magnitude = 2.0 * pi / wave.length;
-        let wavevector = wave.direction * wavevector_magnitude;
-        let temporal_frequency = sqrt(gravity * wavevector_magnitude);  // Temporal frequency
-        let steepness_factor = wave.steepness / (wave.amplitude * wavevector_magnitude * f32(wave_numbers)); 
+    var wavesSum: vec3<f32> = vec3<f32>(0.0);
+    var wavesSumNormal: vec3<f32>;
+    for(var i: i32 = 0; i < waveNumbers; i = i + 1) {
+        let wave = wavesUniforms.waves[i];
+        let wavevectorMagnitude = 2.0 * pi / wave.length;
+        let wavevector = wave.direction * wavevectorMagnitude;
+        let temporalFrequency = sqrt(gravity * wavevectorMagnitude);
+        let steepnessFactor = wave.steepness / (wave.amplitude * wavevectorMagnitude * f32(waveNumbers)); 
+        
+        let pos = dot(wavevector, worldPosition.xz) - temporalFrequency * uniforms.elapsedTime;
+        let sinPosAmplitudeDirection = sin(pos) * wave.amplitude * wave.direction;
         
         var offset: vec3<f32>;
-        let pos = dot(wavevector, worldPosition.xz) - temporal_frequency * uniforms.elapsedTime + phase;
-        offset.x = steepness_factor * wave.direction.x * wave.amplitude * sin(pos);
-        offset.z = steepness_factor * wave.direction.y * wave.amplitude * sin(pos);
-        offset.y = wave.amplitude * cos(pos);
+        offset.x = sinPosAmplitudeDirection.x * steepnessFactor;
+        offset.z = sinPosAmplitudeDirection.y * steepnessFactor;
+        offset.y = cos(pos) * wave.amplitude;
 
         var normal: vec3<f32>;
-        normal.x = sin(pos) * wave.amplitude * wavevector_magnitude * wave.direction.x;
-        normal.z = sin(pos) * wave.amplitude * wavevector_magnitude * wave.direction.y;
-        normal.y = cos(pos) * wave.amplitude * wavevector_magnitude * steepness_factor;
+        normal.x = sinPosAmplitudeDirection.x * wavevectorMagnitude;
+        normal.z = sinPosAmplitudeDirection.y * wavevectorMagnitude;
+        normal.y = cos(pos) * wave.amplitude * wavevectorMagnitude * steepnessFactor;
 
-        waves_sum = waves_sum + offset;
-        waves_sum_normal = waves_sum_normal + normal;
+        wavesSum = wavesSum + offset;
+        wavesSumNormal = wavesSumNormal + normal;
     }
-    waves_sum_normal.y = 1.0 - waves_sum_normal.y;
-    waves_sum_normal = normalize(waves_sum_normal);
+    wavesSumNormal.y = 1.0 - wavesSumNormal.y;
+    wavesSumNormal = normalize(wavesSumNormal);
 
-    worldPosition.x = worldPosition.x - waves_sum.x;
-    worldPosition.z = worldPosition.z - waves_sum.z;
-    worldPosition.y = waves_sum.y;
+    worldPosition.x = worldPosition.x - wavesSum.x;
+    worldPosition.z = worldPosition.z - wavesSum.z;
+    worldPosition.y = wavesSum.y;
 
     output.worldPosition = worldPosition;
     output.position = uniforms.viewProjectionMatrix * worldPosition;
-    output.normal = vec4<f32>(waves_sum_normal, 0.0);
+    output.normal = vec4<f32>(wavesSumNormal, 0.0);
     output.uv = uv;
     return output;
 }
@@ -86,36 +87,36 @@ fn vertex_main(
 fn fragment_main(
     data: VertexOutput,
 ) -> [[location(0)]] vec4<f32> {
-    let light_pos = vec3<f32>(-10.0, 1.0, -10.0);
-    let light = normalize(light_pos - data.worldPosition.xyz);  // Vector from surface to light
-    let incidence = normalize(data.worldPosition.xyz - uniforms.cameraPosition);  // Vector from camera to the surface
-    let reflection = reflect(data.normal.xyz, incidence);  // I - 2.0 * dot(N, I) * N
-    
-    let halfway = normalize(-incidence + light);  // Vector between View and Light
-    let shininess = 30.0;
-    let specular = clamp(pow(dot(data.normal.xyz, halfway), shininess), 0.0, 1.0);  // Blinn-Phong specular component
+    let lightColor = vec3<f32>(1.0, 0.8, 0.65);
+    let skyColor = vec3<f32>(0.69, 0.84, 1.0);
 
-    let sky = vec3<f32>(0.69, 0.84, 1.0);
+    let lightPosition = vec3<f32>(-10.0, 1.0, -10.0);
+    let light = normalize(lightPosition - data.worldPosition.xyz);  // Vector from surface to light
+    let eye = normalize(uniforms.cameraPosition - data.worldPosition.xyz);  // Vector from surface to camera
+    let reflection = reflect(data.normal.xyz, -eye);  // I - 2.0 * dot(N, I) * N
+    
+    let halfway = normalize(eye + light);  // Vector between View and Light
+    let shininess = 30.0;
+    let specular = clamp(pow(dot(data.normal.xyz, halfway), shininess), 0.0, 1.0) * lightColor;  // Blinn-Phong specular component
+
+    let fresnel = clamp(pow(1.0 + dot(-eye, data.normal.xyz), 4.0), 0.0, 1.0);  // Cheap fresnel approximation
 
     // Normalize height to [0, 1]
-    let normalized_height = (data.worldPosition.y + waves_uniforms.amplitudeSum) / (2.0 * waves_uniforms.amplitudeSum);
-    let underwater = textureSample(seaColor, seaSampler, vec2<f32>(normalized_height, 0.0)).rgb;
-
-    let fresnel = clamp(pow(1.0 + dot(incidence, data.normal.xyz), 4.0), 0.0, 1.0);  // Cheap fresnel approximation
+    let normalizedHeight = (data.worldPosition.y + wavesUniforms.amplitudeSum) / (2.0 * wavesUniforms.amplitudeSum);
+    let underwater = textureSample(seaColor, seaSampler, vec2<f32>(normalizedHeight, 0.0)).rgb;
 
     // Approximating Translucency (GPU Pro 2 article)
     let distortion = 0.1;
     let power = 4.0;
     let scale = 1.0;
     let ambient = 0.2;
-    let light_color = vec3<f32>(1.0, 0.8, 0.65);
-    let thickness = smoothStep(0.0, 1.0, normalized_height);
-    let distorted_light = light + data.normal.xyz * distortion;
-    let translucency_dot = pow(clamp(dot(-incidence, -distorted_light), 0.0, 1.0), power) * scale;
-    let translucency = (translucency_dot + ambient) * thickness;
+    let thickness = smoothStep(0.0, 1.0, normalizedHeight);
+    let distortedLight = light + data.normal.xyz * distortion;
+    let translucencyDot = pow(clamp(dot(eye, -distortedLight), 0.0, 1.0), power);
+    let translucency = (translucencyDot * scale + ambient) * thickness;
+    let underwaterTranslucency = mix(underwater, lightColor, translucency) * translucency;
 
-    let sss = mix(underwater, light_color, translucency) * translucency;
-    let color = mix(underwater + sss, sky, fresnel) + specular * light_color;
+    let color = mix(underwater + underwaterTranslucency, skyColor, fresnel) + specular;
 
     return vec4<f32>(color, 1.0);
 }
