@@ -1,6 +1,6 @@
 struct Uniforms {
     elapsedTime: f32;
-    [[align(16)]] modelMatrix: mat4x4<f32>;  // Explicitly set align
+    [[align(16)]] modelMatrix: mat4x4<f32>;  // Explicitly set alignment
     viewProjectionMatrix: mat4x4<f32>;
     cameraPosition: vec3<f32>;
 };

@@ -1,4 +1,4 @@
-import { mat4, glMatrix, quat, vec2, vec3 } from "gl-matrix";
+import { mat4, glMatrix, quat, vec2 } from "gl-matrix";
 import {
   loadImage,
   createOrbitViewMatrix,
@@ -16,8 +16,7 @@ async function main(): Promise<void> {
   if (!("gpu" in navigator)) {
     (document.querySelector("#gpuCanvas") as HTMLCanvasElement).style.display =
       "none";
-    (document.querySelector("#error") as HTMLElement).style.display =
-      "block";
+    (document.querySelector("#error") as HTMLElement).style.display = "block";
   }
 
   // Setup device
@@ -85,12 +84,6 @@ async function main(): Promise<void> {
     ],
   };
 
-  // Camera data
-  const near = 0.1;
-  const far = 100.0;
-  const fov = glMatrix.toRadian(50);
-  const aspectRatio = canvas.width / canvas.height;
-
   // Model matrix
   const modelMatrix = mat4.create();
   mat4.rotateX(modelMatrix, modelMatrix, glMatrix.toRadian(-90));
@@ -99,11 +92,10 @@ async function main(): Promise<void> {
     -plane.height / 2,
     0,
   ]);
-  // mat4.scale(modelMatrix, modelMatrix, [1, 1, 1]);
 
   // Create uniform buffer
   const uniformBuffer = device.createBuffer({
-    size: (4 + 16 + 16 + 3) * Float32Array.BYTES_PER_ELEMENT,
+    size: (4 + 16 + 16 + 3) * Float32Array.BYTES_PER_ELEMENT, // elapsedTime + modelMatrix + viewProjectionMatrix + viewPosition
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -113,7 +105,7 @@ async function main(): Promise<void> {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Create uniform bind group and bind group layout
+  // Create uniform bindgroup and bindgroup layout
   const uniformBindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
@@ -162,7 +154,7 @@ async function main(): Promise<void> {
     [seaColor.width, seaColor.height]
   );
 
-  // Create textures bind group and bind group layout
+  // Create textures bindgroup and bindgroup layout
   const texturesBindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
@@ -194,7 +186,7 @@ async function main(): Promise<void> {
     ],
   });
 
-  // Create pipeline layout from bind group layouts
+  // Create pipeline layout from bindgroup layouts
   const pipelineLayout = device.createPipelineLayout({
     bindGroupLayouts: [uniformBindGroupLayout, texturesBindGroupLayout],
   });
@@ -265,10 +257,10 @@ async function main(): Promise<void> {
 
     const projectionMatrix = mat4.perspectiveZO(
       mat4.create(),
-      fov,
-      aspectRatio,
-      near,
-      far
+      glMatrix.toRadian(50), // FOV
+      canvas.width / canvas.height, // Aspect ratio
+      0.1, // Near
+      100.0 // Far
     );
     const viewProjectionMatrix = mat4.multiply(
       mat4.create(),
@@ -311,13 +303,11 @@ async function main(): Promise<void> {
       16, // 16 bytes offset is used, despite elapsedTime is 4 bytes.
       modelMatrix as Float32Array
     );
-
     device.queue.writeBuffer(
       uniformBuffer,
       16 + 16 * Float32Array.BYTES_PER_ELEMENT, // 16 bytes (elapsedTime) + 64 bytes (modelMatrix mat4x4<f32>)
       viewProjectionMatrix as Float32Array
     );
-
     device.queue.writeBuffer(
       uniformBuffer,
       16 + 16 * 2 * Float32Array.BYTES_PER_ELEMENT,
@@ -350,10 +340,10 @@ async function main(): Promise<void> {
         direction: vec2.normalize(vec2.create(), [4.3, 1.2]),
       },
       {
-        waveLength: 3, // f32 - 4 bytes
-        amplitude: 0.1, // f32 - 4 bytes
-        steepness: 1.0, // f32 - 4 bytes, but 8 bytes will be reserved to match 32 bytes stride
-        direction: vec2.normalize(vec2.create(), [0.5, 0.5]), // vec2<f32> - 8 bytes but 16 bytes will be reserved
+        waveLength: 3,
+        amplitude: 0.1,
+        steepness: 1.0,
+        direction: vec2.normalize(vec2.create(), [0.5, 0.5]),
       },
     ];
 
@@ -371,6 +361,7 @@ async function main(): Promise<void> {
       wavesParametersArray.set(waves[i].direction, 4 + i * 8); // Skip one element, since vec2<f32> aligment is 8 bytes
     }
     device.queue.writeBuffer(wavesParametersBuffer, 0, wavesParametersArray);
+
     const amplitudeSum = waves.reduce((acc, wave) => acc + wave.amplitude, 0);
     device.queue.writeBuffer(
       wavesParametersBuffer,
