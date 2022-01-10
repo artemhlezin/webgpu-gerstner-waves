@@ -8,7 +8,6 @@ import { Controls } from "./controls";
 import { Plane } from "./geometries";
 
 import shaderSource from "./shaders/gerstner-waves.wgsl";
-import logoUrl from "./images/webgpu-logo.webp";
 import seaColorUrl from "./images/sea-color.webp";
 import "./styles/styles.css";
 
@@ -139,22 +138,6 @@ async function main(): Promise<void> {
     ],
   });
 
-  // Load image and copy it to the GPUTexture
-  const logo = await loadImage(logoUrl);
-  const logoGPUTexture = device.createTexture({
-    size: [logo.width, logo.height],
-    format: presentationFormat,
-    usage:
-      GPUTextureUsage.TEXTURE_BINDING |
-      GPUTextureUsage.COPY_DST |
-      GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  device.queue.copyExternalImageToTexture(
-    { source: logo },
-    { texture: logoGPUTexture },
-    [logo.width, logo.height]
-  );
-
   // Load sea color image and copy it to the GPUTexture
   const seaColor = await loadImage(seaColorUrl);
   const seaColorGPUTexture = device.createTexture({
@@ -177,20 +160,10 @@ async function main(): Promise<void> {
       {
         binding: 0,
         visibility: GPUShaderStage.FRAGMENT,
-        sampler: { type: "filtering" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: "float" },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.FRAGMENT,
         sampler: { type: "non-filtering" },
       },
       {
-        binding: 3,
+        binding: 1,
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: "float" },
       },
@@ -202,25 +175,12 @@ async function main(): Promise<void> {
       {
         binding: 0,
         resource: device.createSampler({
-          addressModeU: "repeat",
-          addressModeV: "repeat",
-          magFilter: "linear",
-          minFilter: "linear",
-        }),
-      },
-      {
-        binding: 1,
-        resource: logoGPUTexture.createView(),
-      },
-      {
-        binding: 2,
-        resource: device.createSampler({
           addressModeU: "clamp-to-edge",
           addressModeV: "clamp-to-edge",
         }),
       },
       {
-        binding: 3,
+        binding: 1,
         resource: seaColorGPUTexture.createView(),
       },
     ],

@@ -27,10 +27,8 @@ struct VertexOutput {
 [[group(0), binding(0)]] var<uniform> uniforms: Uniforms;
 [[group(0), binding(1)]] var<uniform> waves_uniforms: GerstnerWavesUniforms;
 
-[[group(1), binding(0)]] var mySampler: sampler;
-[[group(1), binding(1)]] var myTexture: texture_2d<f32>;
-[[group(1), binding(2)]] var seaSampler: sampler;
-[[group(1), binding(3)]] var seaColor: texture_2d<f32>;
+[[group(1), binding(0)]] var seaSampler: sampler;
+[[group(1), binding(1)]] var seaColor: texture_2d<f32>;
 
 
 let pi = 3.14159;   
