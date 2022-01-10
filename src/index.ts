@@ -12,6 +12,14 @@ import seaColorUrl from "./images/sea-color.webp";
 import "./styles/styles.css";
 
 async function main(): Promise<void> {
+  // Check WebGPU support
+  if (!("gpu" in navigator)) {
+    (document.querySelector("#gpuCanvas") as HTMLCanvasElement).style.display =
+      "none";
+    (document.querySelector("#error") as HTMLElement).style.display =
+      "block";
+  }
+
   // Setup device
   const adapter = await navigator.gpu?.requestAdapter();
   if (!adapter) {
