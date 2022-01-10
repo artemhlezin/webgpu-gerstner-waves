@@ -102,7 +102,7 @@ async function main(): Promise<void> {
 
   // Create Gerstner Waves parameters buffer
   const wavesParametersBuffer = device.createBuffer({
-    size: 32 * 3 + 4,
+    size: 32 * 5 + 4, // Wave parameters stride * number of waves + sum of amplitudes
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -358,10 +358,10 @@ async function main(): Promise<void> {
 
     const waves = [
       {
-        waveLength: 2, // f32 - 4 bytes
+        waveLength: 8, // f32 - 4 bytes
         amplitude: 0.1, // f32 - 4 bytes
         steepness: 1.0, // f32 - 4 bytes, but 8 bytes will be reserved to match 32 bytes stride
-        direction: vec2.normalize(vec2.create(), [1.0, 0.3]), // vec2<f32> - 8 bytes but 16 bytes will be reserved
+        direction: vec2.normalize(vec2.create(), [1.0, 1.3]), // vec2<f32> - 8 bytes but 16 bytes will be reserved
       },
       {
         waveLength: 4,
@@ -374,6 +374,18 @@ async function main(): Promise<void> {
         amplitude: 0.2,
         steepness: 1.0,
         direction: vec2.normalize(vec2.create(), [0.3, 0.2]),
+      },
+      {
+        waveLength: 10,
+        amplitude: 0.5,
+        steepness: 1.0,
+        direction: vec2.normalize(vec2.create(), [4.3, 1.2]),
+      },
+      {
+        waveLength: 3, // f32 - 4 bytes
+        amplitude: 0.1, // f32 - 4 bytes
+        steepness: 1.0, // f32 - 4 bytes, but 8 bytes will be reserved to match 32 bytes stride
+        direction: vec2.normalize(vec2.create(), [0.5, 0.5]), // vec2<f32> - 8 bytes but 16 bytes will be reserved
       },
     ];
 

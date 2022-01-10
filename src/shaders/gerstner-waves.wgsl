@@ -13,7 +13,7 @@ struct GerstnerWaveParameters {
 };
 
 struct GerstnerWavesUniforms {
-    waves: [[stride(32)]] array<GerstnerWaveParameters, 3>;
+    waves: [[stride(32)]] array<GerstnerWaveParameters, 5>;
     amplitudeSum: f32;  // Sum of waves amplitudes
 };
 
@@ -35,8 +35,7 @@ struct VertexOutput {
 
 let pi = 3.14159;   
 let gravity = 9.8; // m/sec^2
-let wave_numbers = 3;
-
+let wave_numbers = 5;  
 
 [[stage(vertex)]]
 fn vertex_main(
@@ -103,9 +102,22 @@ fn fragment_main(
     // Normalize height to [0, 1]
     let normalized_height = (data.worldPosition.y + waves_uniforms.amplitudeSum) / (2.0 * waves_uniforms.amplitudeSum);
     let underwater = textureSample(seaColor, seaSampler, vec2<f32>(normalized_height, 0.0)).rgb;
-    
-    let fresnel = clamp(pow(1.0 + dot(incidence, data.normal.xyz), 3.0), 0.0, 1.0);  // Cheap fresnel approximation
-    let color = mix(underwater, sky, fresnel) + specular*vec3<f32>(1.0, 0.8, 0.7);
+
+    let fresnel = clamp(pow(1.0 + dot(incidence, data.normal.xyz), 4.0), 0.0, 1.0);  // Cheap fresnel approximation
+
+    // Approximating Translucency (GPU Pro 2 article)
+    let distortion = 0.1;
+    let power = 4.0;
+    let scale = 1.0;
+    let ambient = 0.2;
+    let light_color = vec3<f32>(1.0, 0.8, 0.65);
+    let thickness = smoothStep(0.0, 1.0, normalized_height);
+    let distorted_light = light + data.normal.xyz * distortion;
+    let translucency_dot = pow(clamp(dot(-incidence, -distorted_light), 0.0, 1.0), power) * scale;
+    let translucency = (translucency_dot + ambient) * thickness;
+
+    let sss = mix(underwater, light_color, translucency) * translucency;
+    let color = mix(underwater + sss, sky, fresnel) + specular * light_color;
 
     return vec4<f32>(color, 1.0);
 }
