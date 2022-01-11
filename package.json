@@ -14,7 +14,7 @@
   "author": "Artem Hlezin",
   "license": "ISC",
   "devDependencies": {
-    "@webgpu/types": "^0.1.8",
+    "@webgpu/types": "^0.1.9",
     "@webpack-cli/generators": "^2.4.1",
     "css-loader": "^6.5.1",
     "html-webpack-plugin": "^5.5.0",
