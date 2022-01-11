@@ -1,3 +1,4 @@
+[[block]]  // Deprecated: [[block]] attributes have been removed from WGSL
 struct Uniforms {
     elapsedTime: f32;
     [[align(16)]] modelMatrix: mat4x4<f32>;  // Explicitly set alignment
@@ -12,6 +13,7 @@ struct GerstnerWaveParameters {
     [[size(16), align(8)]] direction: vec2<f32>;  // Normalized direction of the wave
 };
 
+[[block]]  // Deprecated: [[block]] attributes have been removed from WGSL
 struct GerstnerWavesUniforms {
     waves: [[stride(32)]] array<GerstnerWaveParameters, 5>;
     amplitudeSum: f32;  // Sum of waves amplitudes
