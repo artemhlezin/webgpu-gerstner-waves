@@ -40,7 +40,7 @@ let waveNumbers = 5;
 [[stage(vertex)]]
 fn vertex_main(
     [[location(0)]] position: vec3<f32>,
-    [[location(1)]] normal: vec3<f32>,
+    // [[location(1)]] normal: vec3<f32>,  // TODO: delete normals from plane geo
     [[location(2)]] uv: vec2<f32>,
 ) -> VertexOutput {
     var output: VertexOutput;
